@@ -8,11 +8,11 @@ library(tidyverse)
 library(plotly)
 
 tank <- dbPool(drv = Postgres(),
-               dbname = 'PILLAR',
-               host = 'localhost',
-               port = 5432,
-               user = 'devlin',
-               password = '1834',
+               dbname = Sys.getenv("db_name1"),
+               host = Sys.getenv("db_ip"),
+               port = as.numeric(Sys.getenv("db_port")),
+               user = Sys.getenv("db_user"),
+               password = Sys.getenv("db_pass"),
                bigint = "numeric")
 
 cleanup <- function(tbl) {
