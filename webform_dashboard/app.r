@@ -6,6 +6,21 @@ library(bslib)
 library(tidyverse)
 library(RPostgres)
 
+if (file.exists("../supersecrets.r")) {
+  
+  source("../supersecrets.r")
+  
+}
+
+message('-------------------------------')
+message('DEBUGGING ISSUE')
+val <- Sys.getenv('db_ip')
+message(paste("RAW VALUE: ", val))
+message(paste("NUMERIC VALUE: ", as.numeric(val)))
+message(paste("TYPE OF VALUE: ", class(val)))
+message(paste('NCHARS: ', nchar(val)))
+message('-------------------------------')
+
 mdict <- tibble(MO = 1:12,
                 MN = month.name)
 

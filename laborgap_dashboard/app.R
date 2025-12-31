@@ -7,6 +7,12 @@ library(janitor)
 library(tidyverse)
 library(plotly)
 
+if (file.exists("../supersecrets.r")) {
+  
+  source("../supersecrets.r")
+  
+}
+
 tank <- dbPool(drv = Postgres(),
                dbname = Sys.getenv("db_name1"),
                host = Sys.getenv("db_ip"),

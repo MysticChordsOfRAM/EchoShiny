@@ -3,6 +3,7 @@
 .Rproj.user
 .DS_Store
 .Renviron
+supersecrets.r
 app_cache/
 *_cache/
 *_files/
