@@ -10,7 +10,7 @@ mdict <- tibble(MO = 1:12,
                 MN = month.name)
 
 tank <- dbPool(drv = SQLite(),
-               dbname = "data/webforms.db",
+               dbname = "./data/webforms.db",
                flags = SQLITE_RO)
 
 form_tables <- c("f2", "f9", "f10", "f11")
@@ -199,8 +199,8 @@ server <- function(input, output, session) {
       need(days_diff <= 731, "Error: You cannot select a range larger than 24 months. Please adjust your dates.")
     )
     
-    lbnd <- input$date_range[1] %>% floor_date('month') %>% as.character()
-    ubnd <- input$date_range[2] %>% floor_date('month') %>% as.character()
+    lbnd <- input$date_range[1] %>% floor_date('month') %>% as.numeric()
+    ubnd <- input$date_range[2] %>% floor_date('month') %>% as.numeric()
     
     qry <- glue_sql("SELECT * FROM {DBI::SQL(config$table)}
                      WHERE subj_month BETWEEN {lbnd} AND {ubnd}",
@@ -225,7 +225,14 @@ server <- function(input, output, session) {
       qry <- glue_sql("{qry} AND {`sql_col`} = {input$filter_specific}", .con = tank)
     }
     
-    table_data <- dbGetQuery(tank, qry)
+    table_data <- dbGetQuery(tank, qry) %>%
+      mutate(subj_month = as_date(subj_month))
+    
+    cat(file=stderr(), "--------------------------------\n")
+    cat(file=stderr(), "Query Run:", qry, "\n")
+    cat(file=stderr(), "Rows Found:", nrow(table_data), "\n")
+    cat(file=stderr(), "Config Table Name:", config$table, "\n")
+    cat(file=stderr(), "--------------------------------\n")
     
     if (nrow(table_data) == 0) {
       
