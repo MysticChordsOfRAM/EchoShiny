@@ -4,54 +4,26 @@ library(pool)
 library(glue)
 library(bslib)
 library(tidyverse)
-library(RPostgres)
-
-if (file.exists("../supersecrets.r")) {
-  
-  source("../supersecrets.r")
-  
-}
-
-message('-------------------------------')
-message('DEBUGGING ISSUE')
-val <- Sys.getenv('db_ip')
-message(paste("RAW VALUE: ", val))
-message(paste("NUMERIC VALUE: ", as.numeric(val)))
-message(paste("TYPE OF VALUE: ", class(val)))
-message(paste('NCHARS: ', nchar(val)))
-message('-------------------------------')
+library(RSQLite)
 
 mdict <- tibble(MO = 1:12,
                 MN = month.name)
 
-tank <- dbPool(drv = Postgres(),
-               dbname = Sys.getenv("db_name2"),
-               host = Sys.getenv("db_ip"),
-               port = as.numeric(Sys.getenv("db_port")),
-               user = Sys.getenv("db_user"),
-               password = Sys.getenv("db_pass"),
-               bigint = "numeric")
+tank <- dbPool(drv = SQLite(),
+               dbname = "data/webforms.db",
+               flags = SQLITE_RO)
 
-form_tables <- c("dor.f2", "dor.f9", "dor.f10", "dor.f11")
+form_tables <- c("f2", "f9", "f10", "f11")
 qry_p1 <- vector("character", length(form_tables))
 
-for (ii in 1:length(form_tables)){
-  
-  qry_px <- str_c("SELECT '", form_tables[ii], "' as form_name, ",
-                  "MIN(subj_month) as min_date, ",
-                  "MAX(subj_month) as max_date FROM ", form_tables[ii],
-                  collapse = "")
-  
-  qry_p1[ii] <- qry_px
-  
-}
-
-qry_p2 <- str_c(qry_p1, collapse = " UNION ALL ")
+qry_p2 <- form_tables %>%
+  map_chr(~ glue("SELECT '{.x}' as form_name, MIN(subj_month) as min_date, MAX(subj_month) as max_date FROM {.x}")) %>%
+  paste(collapse = " UNION ALL ")
 
 constnts <- dbGetQuery(tank, qry_p2)
-cntys <- dbGetQuery(tank, "SELECT DISTINCT(county) FROM dor.f10") %>% pull(county)
-industries <- dbGetQuery(tank, "SELECT DISTINCT(kcode_desc) FROM dor.f10") %>% pull(kcode_desc)
-sectors <- dbGetQuery(tank, "SELECT DISTINCT(sector) FROM dor.f11") %>% pull(sector)
+cntys <- dbGetQuery(tank, "SELECT DISTINCT(county) FROM f10") %>% pull(county)
+industries <- dbGetQuery(tank, "SELECT DISTINCT(kcode_desc) FROM f10") %>% pull(kcode_desc)
+sectors <- dbGetQuery(tank, "SELECT DISTINCT(sector) FROM f11") %>% pull(sector)
 
 tlate <- tibble(choices = c("Form 2 - State Tax Collections",
                             "Form 9 - Sales Tax Summary Data",
@@ -60,23 +32,23 @@ tlate <- tibble(choices = c("Form 2 - State Tax Collections",
                 tables = form_tables)
 
 std_spread <- c('Gross Sales', 'Taxable Sales', 'Tax Collections')
-metric_opts <- list('dor.f2' = NULL,
-                    'dor.f9' = std_spread,
-                    'dor.f10' = std_spread,
-                    'dor.f11' = std_spread)
+metric_opts <- list('f2' = NULL,
+                    'f9' = std_spread,
+                    'f10' = std_spread,
+                    'f11' = std_spread)
 
-filter_opts <- list('dor.f2' = NULL,
-                    'dor.f9' = NULL,
-                    'dor.f10' = list(modes = c("County", "Industry"),
-                                     data = list("County" = cntys,
-                                                 "Industry" = industries),
-                                     cols = list("County" = "county",
-                                                 "Industry" = "kcode_desc")),
-                    'dor.f11' = list(modes = c("County", "Sector"),
-                                     data = list("County" = cntys,
-                                                 "Sector" = sectors),
-                                     cols = list("County" = "county",
-                                                 "Sector" = "sector")))
+filter_opts <- list('f2' = NULL,
+                    'f9' = NULL,
+                    'f10' = list(modes = c("County", "Industry"),
+                                 data = list("County" = cntys,
+                                             "Industry" = industries),
+                                 cols = list("County" = "county",
+                                             "Industry" = "kcode_desc")),
+                    'f11' = list(modes = c("County", "Sector"),
+                                 data = list("County" = cntys,
+                                             "Sector" = sectors),
+                                 cols = list("County" = "county",
+                                             "Sector" = "sector")))
 
 ui <- fluidPage(
 
@@ -259,7 +231,7 @@ server <- function(input, output, session) {
       
       return(NULL)
       
-    } else if (config$table == 'dor.f2') {
+    } else if (config$table == 'f2') {
       
       table_clean <- table_data %>%
         mutate(subj_month = ymd(subj_month),
@@ -276,7 +248,7 @@ server <- function(input, output, session) {
       
       return(table_clean)
       
-    } else if (config$table == 'dor.f9') {
+    } else if (config$table == 'f9') {
       
       table_clean <- table_data %>%
         mutate(subj_month = ymd(subj_month),
@@ -293,7 +265,7 @@ server <- function(input, output, session) {
         
       return(table_clean)
       
-    } else if (config$table == 'dor.f10') {
+    } else if (config$table == 'f10') {
       
       table_clean <- table_data %>%
         mutate(subj_month = ymd(subj_month),
@@ -329,7 +301,7 @@ server <- function(input, output, session) {
         
       }
       
-    } else if (config$table == 'dor.f11') {
+    } else if (config$table == 'f11') {
       
       table_clean <- table_data %>%
         mutate(subj_month = ymd(subj_month),
@@ -368,19 +340,16 @@ server <- function(input, output, session) {
     
   })
   
-
   output$result_table <- renderTable({
     computed_data()
   })
   
-
   output$download_ui <- renderUI({
     req(computed_data())
     
     downloadButton("download_data", "Download Table")
   })
   
-  # Handle the actual file download
   output$download_data <- downloadHandler(
     filename = function() {
       paste0(gsub(" ", "_", input$form_choice), "_", Sys.Date(), ".csv")
@@ -389,13 +358,6 @@ server <- function(input, output, session) {
       write.csv(computed_data(), file, row.names = FALSE)
     }
   )
-  
- # session$onSessionEnded(function() {
- #   
- #   print("Session Ended. Closing Pool")
- #   poolClose(tank)
- #   
- # })
 }
 
 shinyApp(ui = ui, server = server)
