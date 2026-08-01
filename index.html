@@ -1,14 +1,39 @@
-<!DOCTYPE html>
-<html>
+
+    <!DOCTYPE html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Devlin Lab Analytics</title>
   <style>
+ 
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; text-align: center; padding-top: 50px; }
-    .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    h1 { color: #333; }
+    .container { max-width: 1100px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    h1 { color: #333; margin-bottom: 5px; }
     p { color: #666; }
-    .btn { display: inline-block; margin: 10px; padding: 15px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; transition: background 0.3s; }
-    .btn:hover { background-color: #0056b3; }
+    hr { margin: 20px 0; border: 0; border-top: 1px solid #eee; }
+    .dashboard-grid { display: flex; justify-content: center; gap: 30px; margin-top: 30px; }
+    .column { flex: 0 0 300px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fafafa; min-height: 400px; }
+    .column-header { border-bottom: 2px solid #007bff; margin-bottom: 25px; padding-bottom: 15px; }
+    h3 { color: #444; margin: 0 0 10px 0; }
+    .subtitle { font-size: 0.85em; color: #888; font-style: italic; margin: 0; padding-bottom: 16px; line-height: 1.2; }
+    .password-box { display: flex; gap: 5px; justify-content: center; }
+    .password-box input { width: 140px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8em; }
+    .btn-unlock { padding: 8px 12px; background-color: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; }
+    .btn-unlock:hover { background-color: #555; }
+    .btn { 
+      display: block; width: 240px; margin: 12px auto; padding: 15px 0; 
+      border-radius: 5px; font-weight: bold; transition: all 0.2s; 
+      font-size: 0.9em; cursor: pointer; border: none; text-align: center;
+      text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn-active { background-color: #007bff; color: white; }
+    .btn-active:hover { background-color: #0056b3; }
+    .btn-disabled { background-color: #ccc; color: #777; cursor: default; }
+    .btn-disabled:hover { background-color: #bbb; }
+    .btn-locked { background-color: #dc3545; color: white}
+    .btn-locked:hover {background-color: #a5253d;}
+    .btn-unlocked { background-color: #28a745; color: white}
+    .btn-unlocked:hover { background-color: #217935; }
   </style>
 </head>
 <body>
@@ -17,13 +42,104 @@
   <h1>Devlin Lab Analytics</h1>
   <p>Select a dashboard to view data models.</p>
   <hr>
-  
-  <a href="./laborgap_dashboard/" class="btn">The Laborgap</a>
-  <a href="./webform_dashboard/" class="btn">DOR Webforms</a>
-  <a href="./340b_dashboard/" class="btn">340b Hospitals</a>
+
+  <div class="dashboard-grid">
+    
+    <div class="column">
+      <div class="column-header">
+        <h3>Proprietary</h3>
+        <div class="password-box">
+          <input type="password" id="labPass" placeholder="Enter Secret Key">
+          <button class="btn-unlock" onclick="unlockDashboards()">Unlock</button>
+        </div>
+      </div>
+      <a href="./laborgap_dashboard/" class="btn auth-required btn-locked">The Laborgap</a>
+      <a href="./340b_dashboard/" class="btn auth-required btn-locked">Louisiana 340b Analysis</a>
+    </div>
+
+    <div class="column">
+      <div class="column-header">
+        <h3>Economics</h3>
+        <p class="subtitle">Not all fun is Economics but all Economics is fun!</p>
+      </div>
+      <a href="./webform_dashboard/" class="btn btn-active">DOR Webforms</a>
+      <button class="btn btn-disabled" onclick="comingSoon(this, 'The SONR')">The SONR</button>
+      <button class="btn btn-disabled" onclick="comingSoon(this, 'REC Agenda Analysis')">REC Agenda Analysis</button>
+      <button class="btn btn-disabled" onclick="comingSoon(this, 'Gross Receipts Forecasting')">Gross Receipts Forecasting</button>
+    </div>
+
+    <div class="column">
+      <div class="column-header">
+        <h3>Fun</h3>
+        <p class="subtitle">The stuff I waste my time on...</p>
+      </div>
+      <button class="btn btn-disabled" onclick="comingSoon(this, 'Devlin is Unhealthy')">Devlin is Unhealthy</button>
+      <a href="./reddit_dashboard/" class="btn btn-active">Reddit Sentiment</a>
+      <button class="btn btn-disabled" onclick="comingSoon(this, 'Devlin has too many Legos')">Devlin has too many Legos</button>
+      <button class="btn btn-disabled" onclick="comingSoon(this, 'Florida Elections')">Florida Elections</button>
+    </div>
+
+  </div>
+
   <br><br>
   <p style="font-size: small;">Authorized Access Only</p>
 </div>
+
+<script>
+  async function unlockDashboards() {
+    const passInput = document.getElementById('labPass');
+    const pass = passInput.value;
+
+    if (!pass) return alert("Enter a secret.");
+
+    const workerUrl = 'https://echoshiny_gatekeeper.devlinlab.workers.dev/auth';
+
+    try {
+      const response = await fetch('/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass })
+      });
+
+      if (response.ok) {
+        alert("Access Granted! Dashboards unlocked.");
+        location.reload(); 
+      } else {
+        alert("Invalid Secret.");
+        passInput.value = "";
+      }
+    } catch (err) {
+      console.error("Auth error:", err);
+      alert("Connection to Cloudflare failed.");
+    }
+  }
+
+  function checkAuthStatus() {
+    const isUnlocked = document.cookie.split(';').some((item) => item.trim().startsWith('lab_access='));
+    const authButtons = document.querySelectorAll('.auth-required');
+    const unlockBtn = document.getElementById('unlockBtn');
+
+    if (isUnlocked) {
+        authButtons.forEach(btn => {
+            btn.classList.remove('btn-locked');
+            btn.classList.add('btn-unlocked');
+        });
+
+        if(unlockBtn) {
+            unlockBtn.innerText = "Active";
+            unlockBtn.style.backgroundColor = "#28a745";
+        }
+    }
+  }
+
+  function comingSoon(btn, originalText) {
+    if (btn.innerText === "Coming Soon...") return;
+    btn.innerText = "Coming Soon...";
+    setTimeout(() => { btn.innerText = originalText; }, 2000);
+  }
+
+  window.onload = checkAuthStatus;
+</script>
 
 </body>
 </html>
